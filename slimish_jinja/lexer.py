@@ -25,7 +25,7 @@ class Lexer(object):
         """
         self.tmp_html_line = None
 
-        def _render_tmp():
+        def _render_tmp_html():
             tmp = self.tmp_html_line
             self.tmp_html_line = False
             current_indent = self.whitespace.match(line)
@@ -43,7 +43,7 @@ class Lexer(object):
 
         for line in self.src:
             if self.tmp_html_line:
-                yield _render_tmp()
+                yield _render_tmp_html()
                 
             self.lineno += 1
             # Ignore blank lines and comments.
@@ -82,7 +82,7 @@ class Lexer(object):
             if ret: yield ret
 
         if self.tmp_html_line:
-            yield _render_tmp()
+            yield _render_tmp_html()
         if self.buf:
             yield TextToken(TEXT, self.lineno, "\n".join(self.buf))
             self.in_text_block = False
