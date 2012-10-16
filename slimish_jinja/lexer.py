@@ -35,20 +35,24 @@ class Lexer(object):
                 change_type, indent_change = indent_change
                 if self.in_text_block:
                     if change_type == UNINDENT:
-                        yield TextToken(TEXT, self.lineno, "".join(self.buf))
+                        yield TextToken(TEXT, self.lineno, "\n".join(self.buf))
                         self.in_text_block = False
                         self.buf = []
                 for change in indent_change:
                     yield change
             # Keep reading text if we are in text block.
             if self.in_text_block:
-                self.buf.append(line[self.indents[-1]:].rstrip())
+                self.buf.append(line[(self.indents[-1]+self.indents[0]):].rstrip())
                 continue
             # Pass the read line to relevant handler.
             first_char = stripped_line[0]
             handler = self.handlers.get(first_char, self.handle_html)
             ret = handler(stripped_line)
             if ret: yield ret
+        if self.buf:
+            yield TextToken(TEXT, self.lineno, "\n".join(self.buf))
+            self.in_text_block = False
+            self.buf = []
         # yield implicity closed tags.
         indents = self.indents
         lineno = self.lineno
@@ -75,6 +79,9 @@ class Lexer(object):
             if not self.in_text_block:
                 indents.append(indent_len)
                 return INDENT, [IndentToken(INDENT, self.lineno, current_indent)]
+        elif self.in_text_block and indent_len == indents[-1]:
+            changes = []
+            return UNINDENT, changes
         elif indents and indent_len < indents[-1]:
             changes = []
             while indents and indents[-1] > indent_len:
