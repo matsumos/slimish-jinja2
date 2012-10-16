@@ -110,17 +110,23 @@ class Lexer(object):
         Returns token for html tags.
         """
         tag_and_vals = self.whitespace.split(line)
-        tag_name = tag_and_vals[0]
+        tag_name_and_class = tag_and_vals[0]
+        tag_name = tag_name_and_class.split('.')[0]
+
         if len(tag_and_vals) == 1:
-            return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name)
+            if tag_name in HtmlToken.no_content_html_tags:
+                return HtmlToken(HTML_NC_TAG, self.lineno, tag_name_and_class)
+            else:
+                return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name_and_class)
         # Get the attributes for the tag.
-        attrs, contents = self.extract_values(tag_name, line)
+        attrs, contents = self.extract_values(tag_name_and_class, line)
+
         if contents:
-            return HtmlToken(HTML_TAG, self.lineno, tag_name, attrs, contents)
+            return HtmlToken(HTML_TAG, self.lineno, tag_name_and_class, attrs, contents)
         elif tag_name in HtmlToken.no_content_html_tags:
-            return HtmlToken(HTML_NC_TAG, self.lineno, tag_name, attrs)
+            return HtmlToken(HTML_NC_TAG, self.lineno, tag_name_and_class, attrs)
         else:
-            return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name, attrs)
+            return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name_and_class, attrs)
 
     def handle_empty_html(self, line):
         """
