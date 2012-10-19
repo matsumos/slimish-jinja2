@@ -6,7 +6,7 @@ class Lexer(object):
     Tokenizes slim templates.
     """
 
-    key_val_pat = re.compile(r'\s+ (.+?) \s*=\s* (["\']) ([^\2]*?) \2', re.X)
+    key_val_pat = re.compile(r'\s+ ([^\s]+?) \s*=\s* (["\']) ([^\2]*?) \2', re.X)
     whitespace = re.compile(r'\s+')
 
     def __init__(self, src):
@@ -23,7 +23,28 @@ class Lexer(object):
         """
         Tokenizes `self.src` and yields `Token` objects..
         """
+        self.tmp_html_line = None
+
+        def _render_tmp_html():
+            tmp = self.tmp_html_line
+            self.tmp_html_line = False
+            current_indent = self.whitespace.match(line)
+            indent_len = 0
+            if current_indent:
+                current_indent = current_indent.group()
+                indent_len = len(current_indent)
+            last_indent = 0
+            if self.indents:
+                last_indent = self.indents[-1]
+            if indent_len <= last_indent:                
+                return self.handle_empty_html(' '+tmp)
+            else:
+                return self.handle_html(tmp)
+
         for line in self.src:
+            if self.tmp_html_line:
+                yield _render_tmp_html()
+                
             self.lineno += 1
             # Ignore blank lines and comments.
             stripped_line = line.strip()
@@ -31,6 +52,7 @@ class Lexer(object):
                 continue
             # Check for indent changes.
             indent_change = self.check_indent(line)
+
             if indent_change:
                 change_type, indent_change = indent_change
                 if self.in_text_block:
@@ -47,8 +69,20 @@ class Lexer(object):
             # Pass the read line to relevant handler.
             first_char = stripped_line[0]
             handler = self.handlers.get(first_char, self.handle_html)
-            ret = handler(stripped_line)
+
+            tag_and_vals = self.whitespace.split(stripped_line)
+            tag_name_and_shot_args = tag_and_vals[0]
+            _, contents = self.extract_values(tag_name_and_shot_args, stripped_line)
+            contents = parse_text_contents(contents[1:])
+            if handler == self.handle_html and not contents:
+                self.tmp_html_line = stripped_line
+                continue
+            else:
+                ret = handler(stripped_line)
             if ret: yield ret
+
+        if self.tmp_html_line:
+            yield _render_tmp_html()
         if self.buf:
             yield TextToken(TEXT, self.lineno, "\n".join(self.buf))
             self.in_text_block = False
@@ -110,23 +144,23 @@ class Lexer(object):
         Returns token for html tags.
         """
         tag_and_vals = self.whitespace.split(line)
-        tag_name_and_class = tag_and_vals[0]
-        tag_name = tag_name_and_class.split('.')[0]
-
+        tag_name_and_shot_args = tag_and_vals[0]
+        tag_name = (tag_name_and_shot_args.split('.')[0]).split('#')[0]
+        
         if len(tag_and_vals) == 1:
             if tag_name in HtmlToken.no_content_html_tags:
-                return HtmlToken(HTML_NC_TAG, self.lineno, tag_name_and_class)
+                return HtmlToken(HTML_NC_TAG, self.lineno, tag_name_and_shot_args)
             else:
-                return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name_and_class)
+                return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name_and_shot_args)
         # Get the attributes for the tag.
-        attrs, contents = self.extract_values(tag_name_and_class, line)
+        attrs, contents = self.extract_values(tag_name_and_shot_args, line)
 
         if contents:
-            return HtmlToken(HTML_TAG, self.lineno, tag_name_and_class, attrs, contents)
+            return HtmlToken(HTML_TAG, self.lineno, tag_name_and_shot_args, attrs, contents)
         elif tag_name in HtmlToken.no_content_html_tags:
-            return HtmlToken(HTML_NC_TAG, self.lineno, tag_name_and_class, attrs)
+            return HtmlToken(HTML_NC_TAG, self.lineno, tag_name_and_shot_args, attrs)
         else:
-            return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name_and_class, attrs)
+            return HtmlToken(HTML_TAG_OPEN, self.lineno, tag_name_and_shot_args, attrs)
 
     def handle_empty_html(self, line):
         """
@@ -134,10 +168,14 @@ class Lexer(object):
         %div => <div></div>
         """
         tag_and_vals = self.whitespace.split(line[1:])
-        tag_name = tag_and_vals[0]
+        tag_name_and_shot_args = tag_and_vals[0]
+        tag_name = (tag_name_and_shot_args.split('.')[0]).split('#')[0]
         # Get the attributes for the tag.
-        attrs, _ = self.extract_values(tag_name, line)
-        return HtmlToken(HTML_TAG, self.lineno, tag_name, attrs, contents=' ')
+        attrs, _ = self.extract_values(tag_name_and_shot_args, line)
+        if tag_name in HtmlToken.no_content_html_tags:
+            return HtmlToken(HTML_NC_TAG, self.lineno, tag_name_and_shot_args, attrs)
+        else:
+            return HtmlToken(HTML_TAG, self.lineno, tag_name_and_shot_args, attrs, contents=' ')
 
     def handle_jinja(self, line):
         """
