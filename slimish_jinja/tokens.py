@@ -139,7 +139,7 @@ JINJA_OUTPUT_TAG = intern('jinja_output_tag')
 class JinjaOutputToken(Token):
     def __init__(self, token_type, lineno, contents):
         self.__dict__.update(token_type=token_type, lineno=lineno,
-                             contents=parse_text_contents(contents))
+                             contents=contents)
 
     def __str__(self):
         return '%s %s %s' % (env['variable_start_string'], self.contents,
@@ -150,9 +150,9 @@ def parse_text_contents(contents):
     """
     Substitutes `=val` with `{{ val }}`.
     """
-    dynamic_val = re.compile(r'(?<!\\)= \s* ([^\s]+)', re.X)
+    dynamic_val = re.compile(r'(?<!\\) ({{)? = \s* ([\w|.]+( \(.*?\) ) ?) (?![^\{]*\})', re.X)
     escaped_val = re.compile(r'\\ \s* (=)', re.X)
-    contents = dynamic_val.sub(r'%s \1 %s' % (env['variable_start_string'],
+    contents = dynamic_val.sub(r'%s \2 %s' % (env['variable_start_string'],
                                               env['variable_end_string']), contents)
     contents = escaped_val.sub(r'\1', contents)
     return contents

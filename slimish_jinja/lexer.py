@@ -6,7 +6,7 @@ class Lexer(object):
     Tokenizes slim templates.
     """
 
-    key_val_pat = re.compile(r'\s+ ([^\s]+?) \s*=\s* (["\']) ([^\2]*?) \2', re.X)
+    key_val_pat = re.compile(r'\s+ ([^\s]+?) \s*=\s* (["\']) ([^\2]*?) \2 (?![^\(]*\))', re.X)
     whitespace = re.compile(r'\s+')
 
     def __init__(self, src):
@@ -71,9 +71,8 @@ class Lexer(object):
             handler = self.handlers.get(first_char, self.handle_html)
 
             tag_and_vals = self.whitespace.split(stripped_line)
-            tag_name_and_shot_args = tag_and_vals[0]
-            _, contents = self.extract_values(tag_name_and_shot_args, stripped_line)
-            contents = parse_text_contents(contents[1:])
+            _, contents = self.extract_values(tag_and_vals[0], stripped_line)
+
             if handler == self.handle_html and not contents:
                 self.tmp_html_line = stripped_line
                 continue
