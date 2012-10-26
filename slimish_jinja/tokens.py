@@ -150,9 +150,9 @@ def parse_text_contents(contents):
     """
     Substitutes `=val` with `{{ val }}`.
     """
-    dynamic_val = re.compile(r'(?<!\\) ({{)? = \s* ([\w|.]* ( [\[\(] .*? [\]\)] )? )* (?![^\{]*\})', re.X)
+    dynamic_val = re.compile(r'(?<!\\) (?:{{)? = \s* ( \w+  (?: (?: \.\w+ | [\[\(] .*? [\]\)] | \ if\ \w* | \ or\ \w* | \ {0,1}[|]\ {0,1}\w* ) ?)* ) (?![^\{]*\})', re.X)
     escaped_val = re.compile(r'\\ \s* (=)', re.X)
-    contents = dynamic_val.sub(r'%s \2 %s' % (env['variable_start_string'],
+    contents = dynamic_val.sub(r'%s \1 %s' % (env['variable_start_string'],
                                               env['variable_end_string']), contents)
     contents = escaped_val.sub(r'\1', contents)
     return contents
