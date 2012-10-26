@@ -1,5 +1,6 @@
 ## [Slim](http://slim-lang.com/) templates syntax for Jinja2. 
 
+[![Build Status](https://secure.travis-ci.org/matsumos/slimish-jinja2.png)](http://travis-ci.org/matsumos/slimish-jinja2)
 
 #### Installation
 
