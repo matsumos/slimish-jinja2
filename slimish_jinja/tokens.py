@@ -145,18 +145,22 @@ class JinjaOutputToken(Token):
         return '%s %s %s' % (env['variable_start_string'], self.contents,
                              env['variable_end_string'])
 
+dynamic_val = re.compile(r'(?<!\\)(?<!\{\{) = \s* ((?: [\w]+ | \'.*?\' | \".*?\" | \{[^\{].*\} | \(.*?\) | \[.*?\] )  (?: ( \.\w+ | \'.*?\' | \".*?\" | \{[^\{].*?\}| \(.*?\)| \[.*?\] | \ (if|else|or|is|in|and|not|==|!=|>|>=|<|<=|~|%)\ \w* | [|]\ {0,1}\w* ) ? )* ) (?![^\{]*\}\})', re.X)
+escaped_val = re.compile(r'\\ \s* (=)', re.X)
 
 def parse_text_contents(contents):
     """
     Substitutes `=val` with `{{ val }}`.
     """
-    dynamic_val = re.compile(r'(?<!\\) (?:{{)? = \s* ( \w+  (?: (?: \.\w+ | [\[\(] .*? [\]\)] | \ if\ \w* | \ or\ \w* | \ {0,1}[|]\ {0,1}\w* ) ?)* ) (?![^\{]*\})', re.X)
-    escaped_val = re.compile(r'\\ \s* (=)', re.X)
     contents = dynamic_val.sub(r'%s \1 %s' % (env['variable_start_string'],
                                               env['variable_end_string']), contents)
     contents = escaped_val.sub(r'\1', contents)
     return contents
 
+id_or_class = re.compile(r'[#.]')
+id_pat = re.compile(r'#([^#.]+)')
+class_pat = re.compile(r'\.([^#.]+)')
+tag_pat = re.compile(r'([^#.]+)')
 
 def parse_tag_name(tag_name):
     """
@@ -167,10 +171,6 @@ def parse_tag_name(tag_name):
     #top => div id="top"
     .mid#top => div id="top" class="mid"
     """
-    id_or_class = re.compile(r'[#.]')
-    id_pat = re.compile(r'#([^#.]+)')
-    class_pat = re.compile(r'\.([^#.]+)')
-    tag_pat = re.compile(r'([^#.]+)')
     short_tag_name = tag_name
 
     if id_or_class.search(tag_name):
