@@ -17,6 +17,7 @@ class SlimishExtension(Extension):
         super(SlimishExtension, self).__init__(environment)
         environment.extend(
             slim_debug=True,
+            slim_print=False,
             file_extensions=('.slim',),
         )
 
@@ -25,9 +26,13 @@ class SlimishExtension(Extension):
         Converts given slim template to jinja template.
         If `source` isn't slim, it's returned as is.
         """
-        if not os.path.splitext(name)[1] in self.environment.file_extensions:
+        if not name or not os.path.splitext(name)[1] in self.environment.file_extensions:
             return source
         output = StringIO()
         lexer = Lexer(iter(source.splitlines()))
         Parser(lexer, callback=output.write, debug=self.environment.slim_debug).parse()
+
+        if self.environment.slim_print:
+            print output.getvalue()
+
         return output.getvalue()
